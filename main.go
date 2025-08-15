@@ -25,10 +25,15 @@ type PlayerType struct {
 	A        float32
 }
 
+type MouseType struct {
+	Yaw float64
+}
+
 type GameType struct {
 	World         WorldType
 	Player        PlayerType
 	FramesCounter int32
+	Mouse         MouseType
 }
 
 func (world *WorldType) Setup() {
@@ -62,33 +67,10 @@ func (world *WorldType) At(x, y int32) uint8 {
 	return world.Map[int32(world.Size.X) * y + x]
 }
 
-func (world *WorldType) DrawCell(pos rl.Vector2, color rl.Color) {
-	rl.DrawRectangle(
-		int32(pos.X + (world.CellSize.X * pos.X)),
-		int32(pos.Y + (world.CellSize.Y * pos.Y)),
-		int32(world.CellSize.X),
-		int32(world.CellSize.Y),
-		color,
-	)
-}
-
 func (world *WorldType) Draw() {
-	var i int32
-	var j int32
-	xl := int32(world.Size.X)
-	yl := int32(world.Size.Y)
-
-	for i = 0; i < xl; i++ {
-		for j = 0; j < yl; j++ {
-			if world.At(j, i) > 0 {
-				world.DrawCell(rl.NewVector2(
-					float32(j), float32(i)), rl.Red)
-			}
-		}
-	}
 }
 
-func (player *PlayerType) RayCast(world WorldType) (d float32) {
+func (player *PlayerType) RayCast(world WorldType) {
 	x := float64(player.Position.X)
 	y := float64(player.Position.Y)
 
@@ -102,47 +84,38 @@ func (player *PlayerType) RayCast(world WorldType) (d float32) {
 		for c = 0; c < 20; c += 0.05 {
 			if world.At(
 				int32(x + c * math.Cos(angle)),
-				int32(y + c * math.Sin(angle))) > 0 {
-					break
-				}
+				int32(y + c * math.Sin(angle)),
+			) > 0 {
+				colh := SCREEN_HEIGHT / c
+				rl.DrawRectangle(
+					 int32(i),
+					 int32(SCREEN_HEIGHT/2 - colh/2),
+					 1, int32(colh), rl.Red,
+				)
+				break
+			}
 		}
-
-		plx := player.Position.X
-		ply := player.Position.Y
-		lx := float32(x + c * math.Cos(angle))
-		ly := float32(y + c * math.Sin(angle))
-
-		rl.DrawLine(
-			int32(plx + (world.CellSize.X * plx)),
-			int32(ply + (world.CellSize.Y * ply)),
-			int32(lx + (world.CellSize.X * lx)),
-			int32(ly + (world.CellSize.Y * ly)),
-			rl.Red,
-		)
-
-		d = float32(c)
 	}
 
 	return
 }
 
 func (player *PlayerType) Draw(world WorldType) {
-	world.DrawCell(player.Position, rl.DarkBlue)
 	player.RayCast(world)
 }
 
-func (player *PlayerType) Update(world WorldType, fc int32) {
-	if rl.IsKeyPressed(rl.KeyRight) && player.Speed.X == 0 {
-		player.Speed = rl.NewVector2(1, 0)
+func (player *PlayerType) Update(world WorldType, fc int32, mouse MouseType) {
+	if rl.IsKeyPressed(rl.KeyW) {
+		player.Speed = rl.NewVector2(
+			float32(math.Cos(float64(player.A))),
+			float32(math.Sin(float64(player.A))),
+		)
 	}
-	if rl.IsKeyPressed(rl.KeyLeft) && player.Speed.X == 0 {
-		player.Speed = rl.NewVector2(-1, 0)
-	}
-	if rl.IsKeyPressed(rl.KeyUp) && player.Speed.Y == 0 {
-		player.Speed = rl.NewVector2(0, -1)
-	}
-	if rl.IsKeyPressed(rl.KeyDown) && player.Speed.Y == 0 {
-		player.Speed = rl.NewVector2(0, 1)
+	if rl.IsKeyPressed(rl.KeyS) {
+		player.Speed = rl.NewVector2(
+			float32(-math.Cos(float64(player.A))),
+			float32(-math.Sin(float64(player.A))),
+		)
 	}
 
 	if fc % 5 == 0 {
@@ -151,9 +124,10 @@ func (player *PlayerType) Update(world WorldType, fc int32) {
 		player.Speed = rl.NewVector2(0, 0)
 	}
 
-	mouse := rl.GetMousePosition()
+	player.A = float32(mouse.Yaw)
 
-	player.A = (mouse.X / SCREEN_WIDTH) * (2*math.Pi)
+	//mouse := rl.GetMousePosition()
+	//player.A = (mouse.X / SCREEN_WIDTH) * (2 * math.Pi)
 }
 
 func (game *GameType) Draw() {
@@ -174,16 +148,51 @@ func (game *GameType) Setup() {
 	// TODO: implement menus/settings
 	game.World.Setup()
 
-	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "RayMod")
+	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "sillygame")
 	rl.SetTargetFPS(60)
 
-	game.Player.Position.X = 0
-	game.Player.Position.Y = 0
-	game.Player.FOV = math.Pi / 3
+	rl.DisableCursor()
+
+	rl.SetMousePosition(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+
+	game.Player.Position.X = 1
+	game.Player.Position.Y = 1
+	game.Player.FOV = math.Pi / 4
+	game.Player.A = 0
+}
+
+func (mouse *MouseType) MouseUpdate() {
+	mousePos := rl.GetMousePosition()
+	deltaX := float64(mousePos.X - (SCREEN_WIDTH/2))
+
+	sensitivity := float64(0.003)
+
+	mouse.Yaw += deltaX * sensitivity
+
+	// Wrap yaw
+	if mouse.Yaw > math.Pi * 2 {
+		mouse.Yaw -= math.Pi * 2
+	}
+
+	if mouse.Yaw < 0 {
+		mouse.Yaw += math.Pi * 2
+	}
+
+	rl.SetMousePosition(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+}
+
+func (game *GameType) HandleMouse() {
+	game.Mouse.MouseUpdate()
 }
 
 func (game *GameType) Update() {
-	game.Player.Update(game.World, game.FramesCounter)
+	game.HandleMouse()
+
+	game.Player.Update(
+		game.World, game.FramesCounter,
+		game.Mouse,
+	)
+
 	game.FramesCounter++
 }
 
