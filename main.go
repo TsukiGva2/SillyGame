@@ -3,6 +3,7 @@ package main
 import (
 	//os
 	"math"
+	"sort"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -40,7 +41,7 @@ type RendererType struct {
 	Texture       rl.Texture2D
 	TexturePixels int32
 	Shader        Shader
-	//Walls         []int32
+	Walls         []float64
 }
 
 type TextureID uint8
@@ -48,6 +49,7 @@ type TextureID uint8
 type EntityType struct {
 	TID       TextureID
 	Position  rl.Vector2
+	Dist      float64
 }
 
 type GameType struct {
@@ -193,6 +195,7 @@ func (renderer *RendererType) Raycaster(
 					rl.NewVector2(float32(i),
 						float32(SCREEN_HEIGHT/2-colh/2)))
 
+				renderer.Walls[i] = perpWallDist
 				hit = 1
 			}
 		}
@@ -244,6 +247,14 @@ func (player *PlayerType) Update(world WorldType, fc int32, mouse MouseType) {
 	//player.A = (mouse.X / SCREEN_WIDTH) * (2 * math.Pi)
 }
 
+func (entity *EntityType) GetDist(player PlayerType) float64 {
+	spriteDist := math.Sqrt(
+		math.Pow(float64(player.Position.X - entity.Position.X), 2) +
+			math.Pow(float64(player.Position.Y - entity.Position.Y), 2),
+	)
+	return spriteDist
+}
+
 func (entity *EntityType) Draw(player PlayerType, renderer *RendererType) {
 	spriteDir := math.Atan2(
 		float64(entity.Position.Y - player.Position.Y),
@@ -260,10 +271,7 @@ func (entity *EntityType) Draw(player PlayerType, renderer *RendererType) {
 		spriteDir += 2 * math.Pi
 	}
 
-	spriteDist := math.Sqrt(
-		math.Pow(float64(player.Position.X - entity.Position.X), 2) +
-			math.Pow(float64(player.Position.Y - entity.Position.Y), 2),
-	)
+	spriteDist := entity.Dist
 
 	spriteSize := math.Min(
 		2000, SCREEN_WIDTH/spriteDist,
@@ -276,11 +284,20 @@ func (entity *EntityType) Draw(player PlayerType, renderer *RendererType) {
 			spriteSize / 2
 	y := SCREEN_HEIGHT/2 - spriteSize/2
 
-	//rl.DrawRectangle(
-	//	int32(x), int32(y), int32(spriteSize), int32(spriteSize),
-	//	rl.Black,
-	//)
 	for i := float64(0); i < spriteSize; i++ {
+
+		if (x + i) < 0 {
+			continue
+		}
+
+		if (x + i) >= SCREEN_WIDTH {
+			continue
+		}
+
+		if renderer.Walls[int64(x + i)] < spriteDist {
+			continue
+		}
+
 		renderer.DrawTextureSlice(
 			entity.TID, int32(
 				(i / spriteSize) *
@@ -307,6 +324,14 @@ func (renderer *RendererType) Render(game *GameType) {
 		game.Player,
 		game.World,
 	)
+	
+	for i, entity := range game.Entities {
+		game.Entities[i].Dist = entity.GetDist(game.Player)
+	}
+
+	sort.Slice(game.Entities, func(i, j int) bool {
+		return game.Entities[i].Dist > game.Entities[j].Dist
+	})
 
 	for _, entity := range game.Entities {
 		entity.Draw(game.Player, renderer)
@@ -387,7 +412,11 @@ func (game *GameType) Setup() {
 	game.Renderer.TexturePixels = 64
 
 	game.Entities = append(game.Entities,
-		EntityType{4, rl.NewVector2(5, 5)})
+		EntityType{6, rl.NewVector2(6, 5.5), 0})
+	game.Entities = append(game.Entities,
+		EntityType{4, rl.NewVector2(5, 5.5), 0})
+
+	game.Renderer.Walls = make([]float64, SCREEN_WIDTH)
 }
 
 func (mouse *MouseType) MouseUpdate() {
