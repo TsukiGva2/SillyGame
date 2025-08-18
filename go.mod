@@ -1,6 +1,6 @@
 module sillygame
 
-go 1.22.4
+go 1.23
 
 require github.com/gen2brain/raylib-go/raylib v0.55.1
 
