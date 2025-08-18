@@ -40,6 +40,7 @@ type RendererType struct {
 	Texture       rl.Texture2D
 	TexturePixels int32
 	Shader        Shader
+	//Walls         []int32
 }
 
 type TextureID uint8
@@ -279,9 +280,12 @@ func (entity *EntityType) Draw(player PlayerType, renderer *RendererType) {
 	//	int32(x), int32(y), int32(spriteSize), int32(spriteSize),
 	//	rl.Black,
 	//)
-	for i := float64(0); i < x; i++ {
+	for i := float64(0); i < spriteSize; i++ {
 		renderer.DrawTextureSlice(
-			entity.TID, int32(float64(renderer.TexturePixels)/i),
+			entity.TID, int32(
+				(i / spriteSize) *
+				float64(renderer.TexturePixels),
+			),
 			rl.NewVector2(1, float32(spriteSize)),
 			rl.NewVector2(float32(x+i), float32(y)),
 		)
