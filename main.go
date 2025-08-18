@@ -13,7 +13,7 @@ const (
 )
 
 type WorldType struct {
-	Map      []uint8
+	Map      []TextureID
 	Size     rl.Vector2
 }
 
@@ -42,43 +42,51 @@ type RendererType struct {
 	Shader        Shader
 }
 
+type TextureID uint8
+
+type EntityType struct {
+	TID       TextureID
+	Position  rl.Vector2
+}
+
 type GameType struct {
 	World         WorldType
 	Player        PlayerType
 	Renderer      RendererType
+	Entities      []EntityType
 	FramesCounter int32
 	Mouse         MouseType
 }
 
 func (world *WorldType) Setup() {
 	world.Map = nil
-	world.Map = []uint8{
-		1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-		1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,1,1,2,2,2,2,0,0,0,0,0,0,1,
-		1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,
-		1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	world.Map = []TextureID{
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 1, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	}
 	world.Size = rl.NewVector2(16, 16)
 }
 
-func (world *WorldType) At(x, y int32) uint8 {
+func (world *WorldType) At(x, y int32) TextureID {
 	return world.Map[int32(world.Size.X) * y + x]
 }
 
 func (renderer *RendererType) DrawTextureSlice(
-    index uint8,
+    index TextureID,
     offset int32,
     size, pos rl.Vector2) {
 
@@ -235,6 +243,51 @@ func (player *PlayerType) Update(world WorldType, fc int32, mouse MouseType) {
 	//player.A = (mouse.X / SCREEN_WIDTH) * (2 * math.Pi)
 }
 
+func (entity *EntityType) Draw(player PlayerType, renderer *RendererType) {
+	spriteDir := math.Atan2(
+		float64(entity.Position.Y - player.Position.Y),
+		float64(entity.Position.X - player.Position.X),
+	)
+
+	playerAngle := float64(player.A)
+
+	for spriteDir - playerAngle > math.Pi {
+		spriteDir -= 2 * math.Pi
+	}
+
+	for spriteDir - playerAngle < -math.Pi {
+		spriteDir += 2 * math.Pi
+	}
+
+	spriteDist := math.Sqrt(
+		math.Pow(float64(player.Position.X - entity.Position.X), 2) +
+			math.Pow(float64(player.Position.Y - entity.Position.Y), 2),
+	)
+
+	spriteSize := math.Min(
+		2000, SCREEN_WIDTH/spriteDist,
+	)
+
+	x :=
+		(spriteDir - playerAngle) *
+			float64(SCREEN_WIDTH) / float64(player.FOV) +
+			float64(SCREEN_WIDTH) / 2 -
+			spriteSize / 2
+	y := SCREEN_HEIGHT/2 - spriteSize/2
+
+	//rl.DrawRectangle(
+	//	int32(x), int32(y), int32(spriteSize), int32(spriteSize),
+	//	rl.Black,
+	//)
+	for i := float64(0); i < x; i++ {
+		renderer.DrawTextureSlice(
+			entity.TID, int32(float64(renderer.TexturePixels)/i),
+			rl.NewVector2(1, float32(spriteSize)),
+			rl.NewVector2(float32(x+i), float32(y)),
+		)
+	}
+}
+
 func (renderer *RendererType) Render(game *GameType) {
 
 	time := float32(rl.GetTime())
@@ -250,6 +303,10 @@ func (renderer *RendererType) Render(game *GameType) {
 		game.Player,
 		game.World,
 	)
+
+	for _, entity := range game.Entities {
+		entity.Draw(game.Player, renderer)
+	}
 
 	game.Player.DrawHand()
 
@@ -324,6 +381,9 @@ func (game *GameType) Setup() {
 
 	game.Renderer.Texture = rl.LoadTexture("walltext.png")
 	game.Renderer.TexturePixels = 64
+
+	game.Entities = append(game.Entities,
+		EntityType{4, rl.NewVector2(5, 5)})
 }
 
 func (mouse *MouseType) MouseUpdate() {
